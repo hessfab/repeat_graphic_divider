@@ -110,7 +110,7 @@ def draw_bounding_box_non_white(image_path, shrink_to, output_path=None,
 
 
 file_path = 'test_images/adi_x12.png'
-# file_path = 'noisy_image.png'
+# file_path = 'bw_image.png'
 
 # Example usage
 image, x_min, y_min, x_max, y_max = draw_bounding_box_non_white(file_path, shrink_to='row') # initially shrink by row
@@ -168,9 +168,9 @@ img_with_lines_and_boxes = draw_dashed_lines_between_boxes(img, bounding_boxes, 
 cv2.imwrite("opencv_dashed_lines_with_tolerance.png", img_with_lines_and_boxes)
 
 # Display the image
-cv2.imshow("Dashed Lines and Boxes", img_with_lines_and_boxes)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# cv2.imshow("Dashed Lines and Boxes", img_with_lines_and_boxes)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
 
 
 # Optional: Display the image with the bounding box

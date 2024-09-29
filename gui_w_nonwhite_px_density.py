@@ -5,18 +5,23 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from PySide2.QtGui import QImage, QPixmap
 import sys
 
+from test_data import convert_to_grayscale, convert_to_binary
+
 
 class ImageClusterApp(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
 
         # Load the image
-        self.image_path = 'test_images/adi_x15.png'  # Replace with your image path
+        self.image_path = 'test_images/adi_x8.png'  # Replace with your image path
         self.image = cv2.imread(self.image_path)
 
         # Calculate total and white pixels
         self.total_pixel_count = self.image.shape[0] * self.image.shape[1]
-        self.white_pixel_count = self.calculate_white_pixels(self.image)
+        grayscaled_img = convert_to_grayscale(self.image)
+        bw_img = convert_to_binary(grayscaled_img)
+        print(self.image.shape)
+        self.white_pixel_count = self.calculate_white_pixels(bw_img)
 
         # Initialize UI
         self.init_ui()
@@ -47,6 +52,11 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.total_area_label.setText("Total Area of Bounding Boxes: N/A")
         layout.addWidget(self.total_area_label)
 
+        # Create a label to display the calculated value
+        self.calculated_value_label = QtWidgets.QLabel(self)
+        self.calculated_value_label.setText("Calculated Value: N/A")
+        layout.addWidget(self.calculated_value_label)
+
         # Create a label to display the number of bounding boxes
         self.bbox_count_label = QtWidgets.QLabel(self)
         self.bbox_count_label.setText("Number of Bounding Boxes: N/A")
@@ -62,12 +72,33 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.bbox_std_ratio_label.setText("Bounding Boxes / Standard Deviation: N/A")
         layout.addWidget(self.bbox_std_ratio_label)
 
+        # Create a label to display the calculated value
+        self.eq_maximizer = QtWidgets.QLabel(self)
+        self.eq_maximizer.setText("EQ Maximizer: N/A")
+        layout.addWidget(self.eq_maximizer)
+
+        # Create checkboxes for showing/hiding features
+        self.show_keypoints_checkbox = QtWidgets.QCheckBox("Show Keypoints", self)
+        self.show_keypoints_checkbox.setChecked(True)  # Default checked
+        layout.addWidget(self.show_keypoints_checkbox)
+        self.show_keypoints_checkbox.stateChanged.connect(self.update_image)
+
+        self.show_bounding_boxes_checkbox = QtWidgets.QCheckBox("Show Bounding Boxes", self)
+        self.show_bounding_boxes_checkbox.setChecked(True)  # Default checked
+        layout.addWidget(self.show_bounding_boxes_checkbox)
+        self.show_bounding_boxes_checkbox.stateChanged.connect(self.update_image)
+
+        self.show_ratio_area_labels_checkbox = QtWidgets.QCheckBox("Show Ratio/Area Labels", self)
+        self.show_ratio_area_labels_checkbox.setChecked(True)  # Default checked
+        layout.addWidget(self.show_ratio_area_labels_checkbox)
+        self.show_ratio_area_labels_checkbox.stateChanged.connect(self.update_image)
+
         # Create a horizontal layout for the slider and its label
         slider_layout = QtWidgets.QHBoxLayout()
 
         # Create a slider for adjusting the eps value
         self.eps_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self.eps_slider.setRange(1, 100)
+        self.eps_slider.setRange(1, 200)
         self.eps_slider.setValue(30)
         self.eps_slider.valueChanged.connect(self.update_image)
         slider_layout.addWidget(self.eps_slider)
@@ -88,7 +119,12 @@ class ImageClusterApp(QtWidgets.QWidget):
 
     def calculate_white_pixels(self, image):
         # Count the number of white pixels (255, 255, 255)
-        white_pixels = np.sum(np.all(image == [255, 255, 255], axis=-1))
+
+        # for rgb image
+        # white_pixels = np.sum(np.all(image == [255, 255, 255], axis=-1))
+
+        # for bw image
+        white_pixels = np.sum(image == 255)
         return white_pixels
 
     def update_image(self):
@@ -135,8 +171,9 @@ class ImageClusterApp(QtWidgets.QWidget):
             x_max = int(np.max(cluster_keypoints[:, 0]))
             y_max = int(np.max(cluster_keypoints[:, 1]))
 
-            # Draw bounding box on the image
-            cv2.rectangle(image_copy, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+            # Draw bounding box on the image if checkbox is checked
+            if self.show_bounding_boxes_checkbox.isChecked():
+                cv2.rectangle(image_copy, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
 
             # Calculate non-white and white pixel ratio
             mask = image_copy[y_min:y_max, x_min:x_max]
@@ -158,9 +195,10 @@ class ImageClusterApp(QtWidgets.QWidget):
             # Store the ratio for standard deviation calculation
             ratios.append(ratio)
 
-            # Display the ratio and area above the bounding box
-            cv2.putText(image_copy, f'Ratio: {ratio:.2f}, Area: {area}', (x_min, y_min - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+            # Display the ratio and area above the bounding box if checkbox is checked
+            if self.show_ratio_area_labels_checkbox.isChecked():
+                cv2.putText(image_copy, f'Ratio: {ratio:.2f}, Area: {area}', (x_min, y_min - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
 
             # Increment the bounding box count
             bounding_box_count += 1
@@ -182,16 +220,37 @@ class ImageClusterApp(QtWidgets.QWidget):
         # Calculate the bounding boxes / standard deviation ratio
         if std_dev > 0:
             bbox_std_ratio = bounding_box_count / std_dev
-            self.bbox_std_ratio_label.setText(f"Bounding Boxes / Standard Deviation: {bbox_std_ratio:.2f}")
+            self.bbox_std_ratio_label.setText(f"# Bounding Boxes / Standard Deviation: {bbox_std_ratio:.2f}")
         else:
-            self.bbox_std_ratio_label.setText("Bounding Boxes / Standard Deviation: N/A")
+            self.bbox_std_ratio_label.setText("# Bounding Boxes / Standard Deviation: N/A")
+
+        # Calculate the new value to be displayed
+        if self.white_pixel_count > 0:
+            ratio_inverse_bbox_to_white_px = (self.total_pixel_count - total_area) / self.white_pixel_count
+        else:
+            ratio_inverse_bbox_to_white_px = float('inf')  # Handle the case where there are no white pixels
+
+        # Update the calculated value label
+        self.calculated_value_label.setText(f"(total_pixel_count - total_bbox_area) / white_pixel_count: {ratio_inverse_bbox_to_white_px:.2f}")
+
+        # Eq maximizer, maximize this value to find ideal eps value
+        if std_dev > 0:
+            eq_max_value = bbox_std_ratio ** (ratio_inverse_bbox_to_white_px ** 3) # created this equation through trial and error
+            # Update the calculated value label
+            self.eq_maximizer.setText(f"EQ Maximizer: {eq_max_value:.2f}")
+        else:
+            self.eq_maximizer.setText(f"EQ Maximizer: N/A")
+
 
         # Draw the keypoints
         image_with_keypoints = cv2.drawKeypoints(image_copy, keypoints, None, color=(0, 0, 255),
                                                  flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         # Convert the image to RGB format
-        image_rgb = cv2.cvtColor(image_with_keypoints, cv2.COLOR_BGR2RGB)
+        if self.show_keypoints_checkbox.isChecked():
+            image_rgb = cv2.cvtColor(image_with_keypoints, cv2.COLOR_BGR2RGB)
+        else:
+            image_rgb = cv2.cvtColor(image_copy, cv2.COLOR_BGR2RGB)
 
         # Convert to QImage for display in PySide
         h, w, ch = image_rgb.shape

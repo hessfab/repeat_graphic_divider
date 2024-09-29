@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+from PIL.ImageOps import grayscale
+
 
 
 def add_gaussian_noise(image, mean=0, std=25):
@@ -89,16 +91,84 @@ def test_with_noise(image_path, noise_type='gaussian'):
 
     # Save and display the noisy image
     cv2.imwrite('noisy_image.png', noisy_image)
-    cv2.imshow('Noisy Image', noisy_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('Noisy Image', noisy_image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     # Run the bounding box detection on the noisy image
     # draw_bounding_box_non_white('noisy_image.png')
 
 
+def convert_to_grayscale(image):
+    """
+    Convert the input image to grayscale.
+
+    Parameters:
+    - image: The original input image.
+
+    Returns:
+    - gray_image: The grayscale image.
+    """
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    return gray_image
+
+
+def convert_to_binary(image, threshold=128):
+    """
+    Convert the input image to binary (black and white).
+
+    Parameters:
+    - image: The input image (preferably grayscale).
+    - threshold: The threshold value to convert the image to binary (default is 128).
+
+    Returns:
+    - binary_image: The binary image.
+    """
+    # If image is not already in grayscale, convert it
+    if len(image.shape) == 3:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    _, binary_image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY)
+    return binary_image
+
+
+def apply_canny_edge_detection(image, lower_threshold=100, upper_threshold=200):
+    """
+    Apply Canny edge detection on the input image.
+
+    Parameters:
+    - image: The input image (preferably grayscale).
+    - lower_threshold: The lower threshold for edge detection.
+    - upper_threshold: The upper threshold for edge detection.
+
+    Returns:
+    - edges: The image with detected edges.
+    """
+    # If image is not already in grayscale, convert it
+    if len(image.shape) == 3:
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Apply Canny edge detection
+    edges = cv2.Canny(image, lower_threshold, upper_threshold)
+    return edges
+
+
 # Example usage
-test_with_noise('test_images/scanned_document.png', noise_type='gaussian')
+
+# file_path = 'test_images/scanned_document.png'
+# test_with_noise(file_path, noise_type='gaussian')
+#
+# image = cv2.imread('noisy_image.png')
+#
+# grayscaled_img = convert_to_grayscale(image)
+# bw_img = convert_to_binary(grayscaled_img)
+#
+# cv2.imwrite('bw_image.png', bw_img)
+# edge_img = apply_canny_edge_detection(bw_img)
+
+# cv2.imshow("Denoised Image", edge_img)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
 
 
 def generate():
