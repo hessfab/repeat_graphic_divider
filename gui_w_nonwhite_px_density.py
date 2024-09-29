@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.cluster import DBSCAN
 from PySide2 import QtWidgets, QtGui, QtCore
 from PySide2.QtGui import QImage, QPixmap
+from PySide2.QtCore import Qt
 import sys
 
 from test_data import convert_to_grayscale, convert_to_binary
@@ -52,63 +53,72 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.update_image()
 
     def init_ui(self):
-        # Create layout
-        layout = QtWidgets.QVBoxLayout()
+        # Create a horizontal layout for the image and controls
+        main_layout = QtWidgets.QHBoxLayout()
+
+        # Create a label to display the image
+        self.image_label = QtWidgets.QLabel(self)
+        main_layout.addWidget(self.image_label)
+
+        # Controls layout
+        controls_layout = QtWidgets.QVBoxLayout()
+        controls_layout.setAlignment(Qt.AlignTop)
+        main_layout.addLayout(controls_layout)
 
         # Create a label to display the total number of pixels
         self.total_pixel_label = QtWidgets.QLabel(self)
         self.total_pixel_label.setText(f"Total Pixels: {self.total_pixel_count}")
-        layout.addWidget(self.total_pixel_label)
+        controls_layout.addWidget(self.total_pixel_label)
 
         # Create a label to display the number of white pixels
         self.white_pixel_label = QtWidgets.QLabel(self)
         self.white_pixel_label.setText(f"White Pixels: {self.white_pixel_count}")
-        layout.addWidget(self.white_pixel_label)
+        controls_layout.addWidget(self.white_pixel_label)
 
         # Create a label to display the total area of bounding boxes
         self.total_area_label = QtWidgets.QLabel(self)
         self.total_area_label.setText("Total Area of Bounding Boxes: N/A")
-        layout.addWidget(self.total_area_label)
+        controls_layout.addWidget(self.total_area_label)
 
         # Create a label to display the calculated value
         self.calculated_value_label = QtWidgets.QLabel(self)
         self.calculated_value_label.setText("Calculated Value: N/A")
-        layout.addWidget(self.calculated_value_label)
+        controls_layout.addWidget(self.calculated_value_label)
 
         # Create a label to display the number of bounding boxes
         self.bbox_count_label = QtWidgets.QLabel(self)
         self.bbox_count_label.setText("Number of Bounding Boxes: N/A")
-        layout.addWidget(self.bbox_count_label)
+        controls_layout.addWidget(self.bbox_count_label)
 
         # Create a label to display the standard deviation
         self.std_label = QtWidgets.QLabel(self)
         self.std_label.setText("Standard Deviation: N/A")
-        layout.addWidget(self.std_label)
+        controls_layout.addWidget(self.std_label)
 
         # Create a label to display bounding boxes / standard deviation
         self.bbox_std_ratio_label = QtWidgets.QLabel(self)
         self.bbox_std_ratio_label.setText("Bounding Boxes / Standard Deviation: N/A")
-        layout.addWidget(self.bbox_std_ratio_label)
+        controls_layout.addWidget(self.bbox_std_ratio_label)
 
         # Create a label to display the calculated value
         self.eq_maximizer = QtWidgets.QLabel(self)
         self.eq_maximizer.setText("EQ Maximizer: N/A")
-        layout.addWidget(self.eq_maximizer)
+        controls_layout.addWidget(self.eq_maximizer)
 
         # Create checkboxes for showing/hiding features
         self.show_keypoints_checkbox = QtWidgets.QCheckBox("Show Keypoints", self)
         self.show_keypoints_checkbox.setChecked(False)  # Default not checked
-        layout.addWidget(self.show_keypoints_checkbox)
+        controls_layout.addWidget(self.show_keypoints_checkbox)
         self.show_keypoints_checkbox.stateChanged.connect(self.update_image)
 
         self.show_bounding_boxes_checkbox = QtWidgets.QCheckBox("Show Bounding Boxes", self)
         self.show_bounding_boxes_checkbox.setChecked(True)  # Default checked
-        layout.addWidget(self.show_bounding_boxes_checkbox)
+        controls_layout.addWidget(self.show_bounding_boxes_checkbox)
         self.show_bounding_boxes_checkbox.stateChanged.connect(self.update_image)
 
         self.show_ratio_area_labels_checkbox = QtWidgets.QCheckBox("Show Ratio/Area Labels", self)
         self.show_ratio_area_labels_checkbox.setChecked(True)  # Default checked
-        layout.addWidget(self.show_ratio_area_labels_checkbox)
+        controls_layout.addWidget(self.show_ratio_area_labels_checkbox)
         self.show_ratio_area_labels_checkbox.stateChanged.connect(self.update_image)
 
         # Create a horizontal layout for the slider and its label
@@ -126,14 +136,12 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.eps_value_label.setText(f"eps: {self.eps_slider.value()}")
         slider_layout.addWidget(self.eps_value_label)
 
-        layout.addLayout(slider_layout)
+        controls_layout.addLayout(slider_layout)
 
-        # Create a label to display the image
-        self.image_label = QtWidgets.QLabel(self)
-        layout.addWidget(self.image_label)
 
-        self.setLayout(layout)
-        self.setWindowTitle("DBSCAN Clustering with ORB")
+
+        self.setLayout(main_layout)
+        self.setWindowTitle("Repeat Graphic Divider - Demo")
 
     def calculate_white_pixels(self, image):
         # Count the number of white pixels (255, 255, 255)
