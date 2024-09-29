@@ -11,17 +11,36 @@ from test_data import convert_to_grayscale, convert_to_binary
 class ImageClusterApp(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
+        # Initial display
+        self.eps_value = 50
 
         # Load the image
-        self.image_path = 'test_images/adi_x8.png'  # Replace with your image path
+        self.image_path = 'test_images/adi_x6.png'  # Replace with your image path
         self.image = cv2.imread(self.image_path)
+
+        # Resize the image
+        # TODO resizing may cause discrepancies with coordinates of bboxes and division lines with respect to original image
+        # Get the dimensions of the original image
+        original_height, original_width = self.image.shape[:2]
+
+        # Define the new width or height (one of them)
+        new_height = 800
+
+        # Calculate the ratio of the new width to the original width
+        aspect_ratio = new_height / original_height
+
+        # Calculate the new height based on the aspect ratio
+        new_width = int(original_width * aspect_ratio)
+
+        # Resize the image while maintaining the aspect ratio
+        self.image = cv2.resize(self.image, (new_width, new_height))
 
         # Calculate total and white pixels
         self.total_pixel_count = self.image.shape[0] * self.image.shape[1]
         grayscaled_img = convert_to_grayscale(self.image)
-        bw_img = convert_to_binary(grayscaled_img)
+        self.bw_img = convert_to_binary(grayscaled_img)
         print(self.image.shape)
-        self.white_pixel_count = self.calculate_white_pixels(bw_img)
+        self.white_pixel_count = self.calculate_white_pixels(self.bw_img)
 
         # Initialize UI
         self.init_ui()
@@ -29,8 +48,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         # Initialize ORB detector
         self.orb = cv2.ORB_create()
 
-        # Initial display
-        self.eps_value = 30
+
         self.update_image()
 
     def init_ui(self):
@@ -79,7 +97,7 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         # Create checkboxes for showing/hiding features
         self.show_keypoints_checkbox = QtWidgets.QCheckBox("Show Keypoints", self)
-        self.show_keypoints_checkbox.setChecked(True)  # Default checked
+        self.show_keypoints_checkbox.setChecked(False)  # Default not checked
         layout.addWidget(self.show_keypoints_checkbox)
         self.show_keypoints_checkbox.stateChanged.connect(self.update_image)
 
@@ -99,7 +117,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         # Create a slider for adjusting the eps value
         self.eps_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         self.eps_slider.setRange(1, 200)
-        self.eps_slider.setValue(30)
+        self.eps_slider.setValue(self.eps_value)
         self.eps_slider.valueChanged.connect(self.update_image)
         slider_layout.addWidget(self.eps_slider)
 
@@ -175,10 +193,10 @@ class ImageClusterApp(QtWidgets.QWidget):
             if self.show_bounding_boxes_checkbox.isChecked():
                 cv2.rectangle(image_copy, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
 
-            # Calculate non-white and white pixel ratio
-            mask = image_copy[y_min:y_max, x_min:x_max]
-            non_white_pixels = np.sum((mask != [255, 255, 255]).all(axis=2))
-            white_pixels = np.sum((mask == [255, 255, 255]).all(axis=2))
+            # Calculate non-white and white pixel ratio from bw image
+            mask = self.bw_img[y_min:y_max, x_min:x_max]
+            non_white_pixels = np.sum((mask != 255))
+            white_pixels = np.sum((mask == 255))
 
             # Avoid division by zero
             if white_pixels == 0:
