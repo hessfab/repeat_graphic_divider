@@ -8,7 +8,7 @@ from PySide2.QtCore import Qt
 import sys
 
 from cutter import draw_dashed_lines_between_boxes
-from test_data import convert_to_grayscale, convert_to_binary
+from test_data import convert_to_grayscale, convert_to_binary, add_gaussian_noise
 
 
 class ImageClusterApp(QtWidgets.QWidget):
@@ -94,16 +94,21 @@ class ImageClusterApp(QtWidgets.QWidget):
         controls_layout.addWidget(self.bbox_std_ratio_label)
 
         # Create a label to display the calculated value
-        self.eq_maximizer = QtWidgets.QLabel(self)
-        self.eq_maximizer.setText("EQ Maximizer: N/A")
-        controls_layout.addWidget(self.eq_maximizer)
+        self.eq_maximizer_label = QtWidgets.QLabel(self)
+        self.eq_maximizer_label.setText("EQ Maximizer: N/A")
+        controls_layout.addWidget(self.eq_maximizer_label)
 
         # Create a label to display the calculated value
-        self.num_divisions = QtWidgets.QLabel(self)
-        self.num_divisions.setText("# Divisions: N/A")
-        controls_layout.addWidget(self.num_divisions)
+        self.num_divisions_label = QtWidgets.QLabel(self)
+        self.num_divisions_label.setText("# Divisions: N/A")
+        controls_layout.addWidget(self.num_divisions_label)
 
         # Create checkboxes for showing/hiding features
+        self.add_noise_checkbox = QtWidgets.QCheckBox("Add Noise", self)
+        self.add_noise_checkbox.setChecked(False)  # Default not checked
+        controls_layout.addWidget(self.add_noise_checkbox)
+        self.add_noise_checkbox.stateChanged.connect(self.update_image)
+
         self.show_keypoints_checkbox = QtWidgets.QCheckBox("Show Keypoints", self)
         self.show_keypoints_checkbox.setChecked(False)  # Default not checked
         controls_layout.addWidget(self.show_keypoints_checkbox)
@@ -204,6 +209,10 @@ class ImageClusterApp(QtWidgets.QWidget):
     def update_image(self):
         # Clear the image for the new draw
         image_copy = self.image.copy()
+
+        # add noise if checked
+        if self.add_noise_checkbox.isChecked():
+            image_copy = add_gaussian_noise(image_copy)
 
         # Detect keypoints and descriptors
         keypoints, descriptors = self.orb.detectAndCompute(image_copy, None)
@@ -315,9 +324,9 @@ class ImageClusterApp(QtWidgets.QWidget):
         if std_dev > 0:
             eq_max_value = bbox_std_ratio ** (ratio_inverse_bbox_to_white_px ** 3) # created this equation through trial and error
             # Update the calculated value label
-            self.eq_maximizer.setText(f"EQ Maximizer: {eq_max_value:.2f}")
+            self.eq_maximizer_label.setText(f"EQ Maximizer: {eq_max_value:.2f}")
         else:
-            self.eq_maximizer.setText(f"EQ Maximizer: N/A")
+            self.eq_maximizer_label.setText(f"EQ Maximizer: N/A")
 
 
         # Generate divisions and draw if checked
@@ -326,9 +335,9 @@ class ImageClusterApp(QtWidgets.QWidget):
                                                            alignment_tolerance=15)
             num_dashed_lines = len(hori_lines) + len(vert_lines)
             if num_dashed_lines > 0:
-                self.num_divisions.setText(f"# Divisions: {num_dashed_lines}")
+                self.num_divisions_label.setText(f"# Divisions: {num_dashed_lines}")
             else:
-                self.num_divisions.setText(f"# Divisions: 0")
+                self.num_divisions_label.setText(f"# Divisions: 0")
 
         # Convert the image to RGB format
         if self.show_keypoints_checkbox.isChecked():

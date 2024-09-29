@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-from PIL.ImageOps import grayscale
-
 
 
 def add_gaussian_noise(image, mean=0, std=25):
