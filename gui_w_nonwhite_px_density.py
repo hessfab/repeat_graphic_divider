@@ -77,7 +77,7 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         # Create a label to display the total area of bounding boxes
         self.total_area_label = QtWidgets.QLabel(self)
-        self.total_area_label.setText("Total Area of Bounding Boxes: N/A")
+        self.total_area_label.setText("Total Area of bboxes: N/A")
         controls_layout.addWidget(self.total_area_label)
 
         # Create a label to display the calculated value
@@ -87,17 +87,17 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         # Create a label to display the number of bounding boxes
         self.bbox_count_label = QtWidgets.QLabel(self)
-        self.bbox_count_label.setText("Number of Bounding Boxes: N/A")
+        self.bbox_count_label.setText("# bboxes: N/A")
         controls_layout.addWidget(self.bbox_count_label)
 
         # Create a label to display the standard deviation
         self.std_label = QtWidgets.QLabel(self)
-        self.std_label.setText("Standard Deviation: N/A")
+        self.std_label.setText("ratio(NWpx/Wpx)_std : N/A")
         controls_layout.addWidget(self.std_label)
 
         # Create a label to display bounding boxes / standard deviation
         self.bbox_std_ratio_label = QtWidgets.QLabel(self)
-        self.bbox_std_ratio_label.setText("Bounding Boxes / Standard Deviation: N/A")
+        self.bbox_std_ratio_label.setText("# bboxes / ratio_std: N/A")
         controls_layout.addWidget(self.bbox_std_ratio_label)
 
         # Create a label to display the calculated value
@@ -230,25 +230,25 @@ class ImageClusterApp(QtWidgets.QWidget):
             bounding_box_count += 1
 
         # Update the bounding box count label
-        self.bbox_count_label.setText(f"Number of Bounding Boxes: {bounding_box_count}")
+        self.bbox_count_label.setText(f"# bboxes: {bounding_box_count}")
 
         # Update the total area label
-        self.total_area_label.setText(f"Total Area of Bounding Boxes: {total_area}")
+        self.total_area_label.setText(f"Total Area of bboxes: {total_area}")
 
         # Calculate and display the standard deviation of ratios
         if len(ratios) > 1:
             std_dev = np.std(ratios)
-            self.std_label.setText(f"Standard Deviation: {std_dev:.2f}")
+            self.std_label.setText(f"ratio(NWpx/Wpx)_std : {std_dev:.2f}")
         else:
             std_dev = 0
-            self.std_label.setText("Standard Deviation: N/A")
+            self.std_label.setText("ratio(NWpx/Wpx)_std : N/A")
 
         # Calculate the bounding boxes / standard deviation ratio
         if std_dev > 0:
             bbox_std_ratio = bounding_box_count / std_dev
-            self.bbox_std_ratio_label.setText(f"# Bounding Boxes / Standard Deviation: {bbox_std_ratio:.2f}")
+            self.bbox_std_ratio_label.setText(f"# bboxes / ratio_std: {bbox_std_ratio:.2f}")
         else:
-            self.bbox_std_ratio_label.setText("# Bounding Boxes / Standard Deviation: N/A")
+            self.bbox_std_ratio_label.setText("# bboxes / ratio_std: N/A")
 
         # Calculate the new value to be displayed
         if self.white_pixel_count > 0:
@@ -257,7 +257,7 @@ class ImageClusterApp(QtWidgets.QWidget):
             ratio_inverse_bbox_to_white_px = float('inf')  # Handle the case where there are no white pixels
 
         # Update the calculated value label
-        self.calculated_value_label.setText(f"(total_pixel_count - total_bbox_area) / white_pixel_count: {ratio_inverse_bbox_to_white_px:.2f}")
+        self.calculated_value_label.setText(f"(total_px_count - total_bbox_area) / white_px_count: {ratio_inverse_bbox_to_white_px:.2f}")
 
         # Eq maximizer, maximize this value to find ideal eps value
         if std_dev > 0:
