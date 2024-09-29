@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from PySide2.QtWidgets import QFileDialog
 from sklearn.cluster import DBSCAN
 from PySide2 import QtWidgets, QtGui, QtCore
 from PySide2.QtGui import QImage, QPixmap
@@ -16,31 +17,17 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.eps_value = 50
 
         # Load the image
-        self.image_path = 'test_images/adi_x6.png'  # Replace with your image path
+        self.image_path = 'test_images/adi_x8.png'  # Replace with your image path
         self.image = cv2.imread(self.image_path)
 
         # Resize the image
-        # TODO resizing may cause discrepancies with coordinates of bboxes and division lines with respect to original image
-        # Get the dimensions of the original image
-        original_height, original_width = self.image.shape[:2]
-
-        # Define the new width or height (one of them)
-        new_height = 800
-
-        # Calculate the ratio of the new width to the original width
-        aspect_ratio = new_height / original_height
-
-        # Calculate the new height based on the aspect ratio
-        new_width = int(original_width * aspect_ratio)
-
-        # Resize the image while maintaining the aspect ratio
-        self.image = cv2.resize(self.image, (new_width, new_height))
+        self.resize_image()
 
         # Calculate total and white pixels
         self.total_pixel_count = self.image.shape[0] * self.image.shape[1]
         grayscaled_img = convert_to_grayscale(self.image)
         self.bw_img = convert_to_binary(grayscaled_img)
-        print(self.image.shape)
+        # print(self.image.shape)
         self.white_pixel_count = self.calculate_white_pixels(self.bw_img)
 
         # Initialize UI
@@ -64,6 +51,11 @@ class ImageClusterApp(QtWidgets.QWidget):
         controls_layout = QtWidgets.QVBoxLayout()
         controls_layout.setAlignment(Qt.AlignTop)
         main_layout.addLayout(controls_layout)
+
+        # Button to open the file explorer and load a new image
+        self.open_button = QtWidgets.QPushButton("Open Image")
+        self.open_button.clicked.connect(self.open_image)
+        controls_layout.addWidget(self.open_button)
 
         # Create a label to display the total number of pixels
         self.total_pixel_label = QtWidgets.QLabel(self)
@@ -152,6 +144,51 @@ class ImageClusterApp(QtWidgets.QWidget):
         # for bw image
         white_pixels = np.sum(image == 255)
         return white_pixels
+
+    def resize_image(self):
+        # TODO resizing may cause discrepancies with coordinates of bboxes and division lines with respect to original image
+        # Get the dimensions of the original image
+        original_height, original_width = self.image.shape[:2]
+
+        # Define the new width or height (one of them)
+        new_height = 800
+
+        # Calculate the ratio of the new width to the original width
+        aspect_ratio = new_height / original_height
+
+        # Calculate the new height based on the aspect ratio
+        new_width = int(original_width * aspect_ratio)
+
+        # Resize the image while maintaining the aspect ratio
+        self.image = cv2.resize(self.image, (new_width, new_height))
+
+    def open_image(self):
+        # Open a file dialog to select the image
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open Image", "",
+                                                   "Images (*.png *.xpm *.jpg *.jpeg *.bmp);;All Files (*)")
+
+        if file_path:
+            # Load the new image
+            self.image_path = file_path
+            self.image = cv2.imread(self.image_path)
+            self.resize_image()
+
+            if self.image is None:
+                QtWidgets.QMessageBox.critical(self, "Error", "Failed to load the image.")
+                return
+
+            # Recalculate total and white pixels
+            self.total_pixel_count = self.image.shape[0] * self.image.shape[1]
+            grayscaled_img = convert_to_grayscale(self.image)
+            self.bw_img = convert_to_binary(grayscaled_img)
+            self.white_pixel_count = self.calculate_white_pixels(self.bw_img)
+
+            # Update labels
+            self.total_pixel_label.setText(f"Total Pixels: {self.total_pixel_count}")
+            self.white_pixel_label.setText(f"White Pixels: {self.white_pixel_count}")
+
+            # Update the image display with the new image
+            self.update_image()
 
     def update_image(self):
         # Clear the image for the new draw
