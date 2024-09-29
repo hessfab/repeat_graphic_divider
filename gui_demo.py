@@ -7,6 +7,7 @@ from PySide2.QtGui import QImage, QPixmap
 from PySide2.QtCore import Qt
 import sys
 
+from cutter import draw_dashed_lines_between_boxes
 from test_data import convert_to_grayscale, convert_to_binary
 
 
@@ -97,6 +98,11 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.eq_maximizer.setText("EQ Maximizer: N/A")
         controls_layout.addWidget(self.eq_maximizer)
 
+        # Create a label to display the calculated value
+        self.num_divisions = QtWidgets.QLabel(self)
+        self.num_divisions.setText("# Divisions: N/A")
+        controls_layout.addWidget(self.num_divisions)
+
         # Create checkboxes for showing/hiding features
         self.show_keypoints_checkbox = QtWidgets.QCheckBox("Show Keypoints", self)
         self.show_keypoints_checkbox.setChecked(False)  # Default not checked
@@ -112,6 +118,11 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.show_ratio_area_labels_checkbox.setChecked(True)  # Default checked
         controls_layout.addWidget(self.show_ratio_area_labels_checkbox)
         self.show_ratio_area_labels_checkbox.stateChanged.connect(self.update_image)
+
+        self.show_divisions_checkbox = QtWidgets.QCheckBox("Show Divisions", self)
+        self.show_divisions_checkbox.setChecked(True)  # Default checked
+        controls_layout.addWidget(self.show_divisions_checkbox)
+        self.show_divisions_checkbox.stateChanged.connect(self.update_image)
 
         # Create a horizontal layout for the slider and its label
         slider_layout = QtWidgets.QHBoxLayout()
@@ -213,8 +224,9 @@ class ImageClusterApp(QtWidgets.QWidget):
         # Store the ratios for standard deviation calculation
         ratios = []
 
-        # Count the number of bounding boxes
+        # Count the number of bounding boxes, and store coordinates
         bounding_box_count = 0
+        bbox_coordinates = []
 
         # Initialize the total area of bounding boxes
         total_area = 0
@@ -233,6 +245,9 @@ class ImageClusterApp(QtWidgets.QWidget):
             y_min = int(np.min(cluster_keypoints[:, 1]))
             x_max = int(np.max(cluster_keypoints[:, 0]))
             y_max = int(np.max(cluster_keypoints[:, 1]))
+
+            # store bbox coordinates for calculating divisions
+            bbox_coordinates.append((x_min, y_min, x_max, y_max))
 
             # Draw bounding box on the image if checkbox is checked
             if self.show_bounding_boxes_checkbox.isChecked():
@@ -278,7 +293,7 @@ class ImageClusterApp(QtWidgets.QWidget):
             self.std_label.setText(f"ratio(NWpx/Wpx)_std : {std_dev:.2f}")
         else:
             std_dev = 0
-            self.std_label.setText("ratio(NWpx/Wpx)_std : N/A")
+            self.std_label.setText("ratio(NWpx/Wpx)_std: N/A")
 
         # Calculate the bounding boxes / standard deviation ratio
         if std_dev > 0:
@@ -305,12 +320,21 @@ class ImageClusterApp(QtWidgets.QWidget):
             self.eq_maximizer.setText(f"EQ Maximizer: N/A")
 
 
-        # Draw the keypoints
-        image_with_keypoints = cv2.drawKeypoints(image_copy, keypoints, None, color=(0, 0, 255),
-                                                 flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # Generate divisions and draw if checked
+        if self.show_divisions_checkbox.isChecked():
+            image_copy, hori_lines, vert_lines = draw_dashed_lines_between_boxes(image_copy, bbox_coordinates, show_boxes=False,
+                                                           alignment_tolerance=15)
+            num_dashed_lines = len(hori_lines) + len(vert_lines)
+            if num_dashed_lines > 0:
+                self.num_divisions.setText(f"# Divisions: {num_dashed_lines}")
+            else:
+                self.num_divisions.setText(f"# Divisions: 0")
 
         # Convert the image to RGB format
         if self.show_keypoints_checkbox.isChecked():
+            # Draw the keypoints
+            image_with_keypoints = cv2.drawKeypoints(image_copy, keypoints, None, color=(0, 0, 255),
+                                                     flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             image_rgb = cv2.cvtColor(image_with_keypoints, cv2.COLOR_BGR2RGB)
         else:
             image_rgb = cv2.cvtColor(image_copy, cv2.COLOR_BGR2RGB)
