@@ -18,7 +18,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.eps_value = 50
 
         # Load the image
-        self.image_path = 'test_images/adi_x8.png'  # Replace with your image path
+        self.image_path = 'test_images/test_photo_1.jpg'  # Replace with your image path
         self.image = cv2.imread(self.image_path)
 
         # Resize the image
@@ -35,7 +35,8 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.init_ui()
 
         # Initialize ORB detector
-        self.orb = cv2.ORB_create()
+        self.orb = cv2.ORB_create() #TODO create slider for nfeatures
+        self.orb.setMaxFeatures(2000)
 
 
         self.update_image()
@@ -227,7 +228,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.eps_value_label.setText(f"eps: {self.eps_value}")
 
         # Perform DBSCAN clustering
-        db = DBSCAN(eps=float(self.eps_value), min_samples=5).fit(keypoints_np)
+        db = DBSCAN(eps=float(self.eps_value), min_samples=10).fit(keypoints_np) #TODO slider for min samples
         labels = db.labels_
 
         # Store the ratios for standard deviation calculation
@@ -353,8 +354,29 @@ class ImageClusterApp(QtWidgets.QWidget):
         bytes_per_line = ch * w
         q_img = QImage(image_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
 
+        original_pixmap = QPixmap.fromImage(q_img)
+
+        # Set the maximum width and height
+        max_width = 800
+        max_height = 800
+
+        # Get original dimensions
+        original_width = original_pixmap.width()
+        original_height = original_pixmap.height()
+
+        # Calculate the scaling factor while respecting both max width and height
+        scale_factor = min(max_width / original_width, max_height / original_height)
+
+        # Scale the pixmap while maintaining the aspect ratio
+        new_width = int(original_width * scale_factor)
+        new_height = int(original_height * scale_factor)
+        scaled_pixmap = original_pixmap.scaled(new_width, new_height)
+
         # Set the image in the label
-        self.image_label.setPixmap(QPixmap.fromImage(q_img))
+        self.image_label.setPixmap(scaled_pixmap)
+
+        # resize window to fit new content
+        self.adjustSize()
 
 
 # Main entry point

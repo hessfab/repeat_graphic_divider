@@ -1,5 +1,11 @@
+import glob
+import random
 import cv2
+import cairosvg
 import numpy as np
+import os
+from PIL import Image
+import io
 
 
 def add_gaussian_noise(image, mean=0, std=25):
@@ -150,24 +156,218 @@ def apply_canny_edge_detection(image, lower_threshold=100, upper_threshold=200):
     edges = cv2.Canny(image, lower_threshold, upper_threshold)
     return edges
 
+def transparent_to_white(img):
+    # Check if the image has an alpha channel
+    if img.shape[2] == 4:  # If the image has an alpha channel
+        # Create an output image with a white background
+        white_background = np.ones_like(img, dtype=np.uint8) * 255  # Create a white image
 
-# Example usage
+        # Split the channels
+        b, g, r, a = cv2.split(img)  # Separate the channels including alpha
 
-# file_path = 'test_images/scanned_document.png'
-# test_with_noise(file_path, noise_type='gaussian')
+        # Create a mask from the alpha channel
+        alpha_mask = a / 255.0  # Normalize alpha values to [0, 1]
+
+        # Prepare an output image with white background
+        output_image = np.zeros_like(img)  # Initialize output image
+
+        # Blend the original image with the white background
+        for c in range(3):  # For each channel (B, G, R)
+            output_image[:, :, c] = (alpha_mask * img[:, :, c] + (1 - alpha_mask) * white_background[:, :, c])
+
+        # Set alpha channel to 255 (opaque) for the output image
+        output_image[:, :, 3] = 255
+
+        return output_image  # Return the modified image
+    else:
+        print("The image does not have an alpha channel.")
+        return img  # Return the original image if no alpha channel
+
+def resize_image(image, max_size=200):
+    # Get the current dimensions of the image
+    height, width = image.shape[:2]
+
+    # Calculate the aspect ratio
+    aspect_ratio = width / height
+
+    # Determine new dimensions while maintaining aspect ratio
+    if width > height:
+        new_width = max_size
+        new_height = int(max_size / aspect_ratio)
+    else:
+        new_height = max_size
+        new_width = int(max_size * aspect_ratio)
+
+    # Resize the image
+    resized_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+    return resized_image
+
+def rgba_to_rgb(img):
+    # Check if the image has an alpha channel
+    if img.shape[2] == 4:  # If the image has an alpha channel
+        # Convert RGBA to RGB by ignoring the alpha channel
+        rgb_image = img[:, :, :3]  # Take only the first three channels (R, G, B)
+        return rgb_image
+    else:
+        print("The image does not have an alpha channel.")
+        return img  # Return the original image if no alpha channel
+
+
+def svg_to_png_opencv(svg_file_path, png_width=None, png_height=None):
+    """
+    Convert an SVG file to a 32-bit PNG image using OpenCV.
+
+    Parameters:
+        svg_file_path (str): The path to the SVG file.
+        png_width (int): Optional width of the output PNG image.
+        png_height (int): Optional height of the output PNG image.
+
+    Returns:
+        numpy.ndarray: The 32-bit PNG image with an alpha channel.
+    """
+    # Read the SVG file
+    with open(svg_file_path, 'rb') as svg_file:
+        svg_data = svg_file.read()
+
+    # If dimensions are specified, apply the width and height to cairosvg
+    if png_width is not None and png_height is not None:
+        png_data = cairosvg.svg2png(bytestring=svg_data, output_width=png_width, output_height=png_height)
+    else:
+        png_data = cairosvg.svg2png(bytestring=svg_data)
+
+    # Convert the PNG data to an OpenCV image
+    png_image = np.frombuffer(png_data, dtype=np.uint8)
+    png_image = cv2.imdecode(png_image, cv2.IMREAD_UNCHANGED)  # Load with alpha channel (32-bit)
+
+    # Ensure the output image is in 32-bit (RGBA format)
+    if png_image.shape[2] == 3:  # If it's RGB, convert to RGBA
+        png_image = cv2.cvtColor(png_image, cv2.COLOR_RGB2RGBA)
+
+    return png_image
+
+# Function to create a grid of an image with padding using OpenCV
+def create_image_grid(input_image_path, output_image_path, grid_size=(3, 3), padding=10, input_image=None):
+    # Read the image using OpenCV
+    if input_image is not None:
+        img = input_image
+    else:
+        img = cv2.imread(input_image_path, cv2.IMREAD_UNCHANGED)
+
+    img = transparent_to_white(img)
+    img = resize_image(img)
+    # Add padding around the image (optional)
+    if padding > 0:
+        img = cv2.copyMakeBorder(img, padding, padding, padding, padding, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+
+    # Get the size of the padded image
+    img_height, img_width, _ = img.shape
+
+    # Create a blank canvas for the grid
+    grid_width = img_width * grid_size[0]  # Total width (number of columns)
+    grid_height = img_height * grid_size[1]  # Total height (number of rows)
+    grid_img = np.ones((grid_height, grid_width, 4), dtype=np.uint8) * 255  # White background
+
+    # Loop through the grid and place the image in each cell
+    for row in range(grid_size[1]):
+        for col in range(grid_size[0]):
+            # Calculate the position for each image in the grid
+            y_start = row * img_height
+            y_end = y_start + img_height
+            x_start = col * img_width
+            x_end = x_start + img_width
+
+            # Paste the image into the grid
+            grid_img[y_start:y_end, x_start:x_end] = img
+
+    # Save the final grid image
+    grid_img = rgba_to_rgb(grid_img)
+    cv2.imwrite(output_image_path, grid_img)
+    print(f"Saved grid image: {output_image_path}")
+
+
+# Function to process all images in a folder
+def process_images_in_folder(input_folder, output_folder, grid_size=(3, 3), padding=10):
+    # Ensure the output folder exists
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    # Loop through all files in the folder
+    for filename in os.listdir(input_folder):
+        if filename.endswith(('.png', '.jpg', '.jpeg')):
+            input_image_path = os.path.join(input_folder, filename)
+            output_image_path = os.path.join(output_folder, f'grid_{filename}')
+
+            # Create a grid for the current image
+            create_image_grid(input_image_path, output_image_path, grid_size, padding)
+
+
+def list_svg_files(directory):
+    """
+    Lists all SVG files in the specified directory using glob.
+
+    Parameters:
+        directory (str): The path to the directory.
+
+    Returns:
+        list: A list of SVG file paths.
+    """
+    return glob.glob(os.path.join(directory, '**', '*.svg'), recursive=True)
+
+def process_svgs_in_folder(input_folder, output_folder, data_set_size=None):
+    # Ensure the output folder exists
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    # Find all svg logos
+    svg_logos = list_svg_files(input_folder)
+
+    # Randomly select data_set_size from logos
+    if data_set_size is not None and data_set_size < len(svg_logos):
+        selected_logos = random.sample(svg_logos, data_set_size)
+    else:
+        selected_logos = svg_logos
+
+    # Loop over svg images, convert to png, and process into grid
+    for logo_path in selected_logos:
+        img = svg_to_png_opencv(logo_path, png_width=None, png_height=None)
+        img = resize_image(img)
+        row = random.choice(range(1, 7))
+        col = random.choice(range(1, 4))
+        padding = random.choice(range(20, 51, 5))
+        logo_name = os.path.basename(logo_path).split(".")[0]
+
+        output_image_path = os.path.join(output_folder, f"{logo_name}_g{row}x{col}_p{padding}.png")
+        create_image_grid("", output_image_path, (col, row), padding, input_image=img)
+
+    # # Loop through all files in the folder
+    # for filename in os.listdir(input_folder):
+    #     if filename.endswith(('.png', '.jpg', '.jpeg')):
+    #         input_image_path = os.path.join(input_folder, filename)
+    #         output_image_path = os.path.join(output_folder, f'grid_{filename}')
+    #
+    #         # Create a grid for the current image
+    #         create_image_grid(input_image_path, output_image_path, grid_size, padding)
+
+
+
+# Define input and output folders
+input_folder = './test_data/logos'  # Folder containing the original images
+output_folder = './test_data/output_images'  # Folder where grid images will be saved
+
+process_svgs_in_folder(input_folder, output_folder, data_set_size=1)
+
+
+
+# Set the grid size (e.g., 3x3, 4x4, etc.) and padding in pixels
+# grid_size = (4, 4)  # 4 columns by 4 rows
+# padding = 20  # Padding in pixels around each image
 #
-# image = cv2.imread('noisy_image.png')
-#
-# grayscaled_img = convert_to_grayscale(image)
-# bw_img = convert_to_binary(grayscaled_img)
-#
-# cv2.imwrite('bw_image.png', bw_img)
-# edge_img = apply_canny_edge_detection(bw_img)
-
-# cv2.imshow("Denoised Image", edge_img)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
+# # Process all images in the folder
+# process_images_in_folder(input_folder, output_folder, grid_size, padding)
 
 
-def generate():
+
+
+def generate_test_data():
     pass
