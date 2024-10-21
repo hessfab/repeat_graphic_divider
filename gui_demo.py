@@ -2,18 +2,22 @@ import cv2
 import numpy as np
 from PySide2.QtWidgets import QFileDialog
 from sklearn.cluster import DBSCAN
-from PySide2 import QtWidgets, QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 from PySide2.QtGui import QImage, QPixmap
-from PySide2.QtCore import Qt
+from PySide2.QtCore import Qt, QTimer
 import sys
 
+import test_data
 from cutter import draw_dashed_lines_between_boxes
-from test_data import convert_to_grayscale, convert_to_binary, add_gaussian_noise
+from test_data import convert_to_grayscale, convert_to_binary, add_gaussian_noise, list_files_w_ext
 
 
 class ImageClusterApp(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
+        # for demo
+        self.demo_running = False
+
         # Initial display
         self.eps_value = 50
 
@@ -56,7 +60,7 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         # Button to open the file explorer and load a new image
         self.open_button = QtWidgets.QPushButton("Open Image")
-        self.open_button.clicked.connect(self.open_image)
+        self.open_button.clicked.connect(self.open_image_w_dialog)
         controls_layout.addWidget(self.open_button)
 
         # Create a label to display the total number of pixels
@@ -135,7 +139,8 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         # Create a slider for adjusting the eps value
         self.eps_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self.eps_slider.setRange(1, 200)
+        self.eps_max = 100
+        self.eps_slider.setRange(1, self.eps_max)
         self.eps_slider.setValue(self.eps_value)
         self.eps_slider.valueChanged.connect(self.update_image)
         slider_layout.addWidget(self.eps_slider)
@@ -147,7 +152,10 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         controls_layout.addLayout(slider_layout)
 
-
+        # Button to run demo
+        self.run_demo_button = QtWidgets.QPushButton("Run Demo")
+        self.run_demo_button.clicked.connect(self.run_demo)
+        controls_layout.addWidget(self.run_demo_button)
 
         self.setLayout(main_layout)
         self.setWindowTitle("Repeat Graphic Divider - Demo")
@@ -179,11 +187,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         # Resize the image while maintaining the aspect ratio
         self.image = cv2.resize(self.image, (new_width, new_height))
 
-    def open_image(self):
-        # Open a file dialog to select the image
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open Image", "",
-                                                   "Images (*.png *.xpm *.jpg *.jpeg *.bmp);;All Files (*)")
-
+    def open_image(self, file_path):
         if file_path:
             # Load the new image
             self.image_path = file_path
@@ -206,6 +210,59 @@ class ImageClusterApp(QtWidgets.QWidget):
 
             # Update the image display with the new image
             self.update_image()
+
+    def open_image_w_dialog(self):
+        # Open a file dialog to select the image
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open Image", "",
+                                                   "Images (*.png *.xpm *.jpg *.jpeg *.bmp);;All Files (*)")
+        self.open_image(file_path)
+
+    def change_eps_update_image(self):
+        if self.demo_index == 0:
+            self.open_image(self.demo_images[self.demo_index])
+        if self.eps_value >= self.eps_max:
+            # max eps reached, reset
+            self.eps_value = 0
+            self.eps_slider.setValue(self.eps_value)
+            # move to next image
+            self.demo_index += 1
+            if self.demo_index == len(self.demo_images):
+                self.timer.stop()
+                self.demo_finished()
+            else:
+                self.open_image(self.demo_images[self.demo_index])
+        else:
+            # increase eps value and update
+            self.eps_value += 1
+            self.eps_slider.setValue(self.eps_value)
+            self.update_image()
+
+    def demo_finished(self):
+        print("Demo completed.")
+        self.demo_running = False
+        self.run_demo_button.setText("Run Demo")
+
+    def run_demo(self):
+        print("running demo")
+        self.demo_running = not self.demo_running
+        self.demo_images = list_files_w_ext(test_data.output_folder, "png")
+        self.demo_index = 0
+        if self.demo_running:
+            self.eps_value = 0
+            # change button text
+            self.run_demo_button.setText("Stop Demo")
+            # Connect QTimer to trigger image updates
+            self.timer = QTimer()
+            self.timer.timeout.connect(self.change_eps_update_image)
+            self.timer.start(20)  # 20 milliseconds
+
+        else:
+            # demo stopped
+            self.timer.stop()
+            # change button text
+            self.run_demo_button.setText("Run Demo")
+
+        print(self.demo_running)
 
     def update_image(self):
         # Clear the image for the new draw

@@ -302,17 +302,18 @@ def process_images_in_folder(input_folder, output_folder, grid_size=(3, 3), padd
             create_image_grid(input_image_path, output_image_path, grid_size, padding)
 
 
-def list_svg_files(directory):
+def list_files_w_ext(directory, ext):
     """
-    Lists all SVG files in the specified directory using glob.
+    Lists all files ending in .(ext) in the specified directory using glob.
 
     Parameters:
         directory (str): The path to the directory.
+        ext (str): Search for files with this extension.
 
     Returns:
-        list: A list of SVG file paths.
+        list: A list of .(ext) file paths.
     """
-    return glob.glob(os.path.join(directory, '**', '*.svg'), recursive=True)
+    return glob.glob(os.path.join(directory, '**', f'*.{ext}'), recursive=True)
 
 def process_svgs_in_folder(input_folder, output_folder, data_set_size=None):
     # Ensure the output folder exists
@@ -320,7 +321,7 @@ def process_svgs_in_folder(input_folder, output_folder, data_set_size=None):
         os.makedirs(output_folder)
 
     # Find all svg logos
-    svg_logos = list_svg_files(input_folder)
+    svg_logos = list_files_w_ext(input_folder, "svg")
 
     # Randomly select data_set_size from logos
     if data_set_size is not None and data_set_size < len(svg_logos):
@@ -340,23 +341,6 @@ def process_svgs_in_folder(input_folder, output_folder, data_set_size=None):
         output_image_path = os.path.join(output_folder, f"{logo_name}_g{row}x{col}_p{padding}.png")
         create_image_grid("", output_image_path, (col, row), padding, input_image=img)
 
-    # # Loop through all files in the folder
-    # for filename in os.listdir(input_folder):
-    #     if filename.endswith(('.png', '.jpg', '.jpeg')):
-    #         input_image_path = os.path.join(input_folder, filename)
-    #         output_image_path = os.path.join(output_folder, f'grid_{filename}')
-    #
-    #         # Create a grid for the current image
-    #         create_image_grid(input_image_path, output_image_path, grid_size, padding)
-
-
-
-# Define input and output folders
-input_folder = './test_data/logos'  # Folder containing the original images
-output_folder = './test_data/output_images'  # Folder where grid images will be saved
-
-process_svgs_in_folder(input_folder, output_folder, data_set_size=1)
-
 
 
 # Set the grid size (e.g., 3x3, 4x4, etc.) and padding in pixels
@@ -367,7 +351,9 @@ process_svgs_in_folder(input_folder, output_folder, data_set_size=1)
 # process_images_in_folder(input_folder, output_folder, grid_size, padding)
 
 
+# Define input and output folders
+input_folder = './test_data/logos'  # Folder containing the original images
+output_folder = './test_data/output_images'  # Folder where grid images will be saved
 
-
-def generate_test_data():
-    pass
+def generate_test_data(n):
+    process_svgs_in_folder(input_folder, output_folder, data_set_size=n)
