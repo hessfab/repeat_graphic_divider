@@ -183,7 +183,7 @@ def transparent_to_white(img):
         print("The image does not have an alpha channel.")
         return img  # Return the original image if no alpha channel
 
-def resize_image(image, max_size=200):
+def resize_image(image, max_size=260):
     # Get the current dimensions of the image
     height, width = image.shape[:2]
 
@@ -266,7 +266,7 @@ def create_image_grid(input_image_path, output_image_path, grid_size=(3, 3), pad
     # Create a blank canvas for the grid
     grid_width = img_width * grid_size[0]  # Total width (number of columns)
     grid_height = img_height * grid_size[1]  # Total height (number of rows)
-    grid_img = np.ones((grid_height, grid_width, 4), dtype=np.uint8) * 255  # White background
+    grid_img = np.ones((grid_height, grid_width, 4), dtype=np.uint8) * 245  # White background
 
     # Loop through the grid and place the image in each cell
     for row in range(grid_size[1]):
@@ -339,7 +339,7 @@ def process_svgs_in_folder(input_folder, output_folder, data_set_size=None):
         while row * col == 1:
             row = random.choice(range(1, 7))
             col = random.choice(range(1, 4))
-        padding = random.choice(range(20, 51, 5))
+        padding = random.choice(range(35, 71, 5))
         logo_name = os.path.basename(logo_path).split(".")[0]
 
         output_image_path = os.path.join(output_folder, f"{logo_name}_g{row}x{col}_p{padding}.png")

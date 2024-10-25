@@ -382,7 +382,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         if self.demo_running:
             self.demo_images = list_files_w_ext(test_data.output_folder, "png")
             if len(self.demo_images) == 0:
-                QtWidgets.QMessageBox.critical(self, "Error", "No test data found in ./test_data/output_images to run demo on.")
+                QtWidgets.QMessageBox.critical(self, "Error", "No test data found in ./test_data/output_images to run demo on. Please generate test data first.")
                 self.demo_running = False
             else:
 
