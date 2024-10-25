@@ -1,10 +1,12 @@
+import os
+
 import cv2
 import numpy as np
 from PySide2.QtWidgets import QFileDialog
 from sklearn.cluster import DBSCAN
 from PySide2 import QtWidgets, QtCore
 from PySide2.QtGui import QImage, QPixmap
-from PySide2.QtCore import Qt, QTimer
+from PySide2.QtCore import Qt, QTimer, QThread, QObject, Signal
 import sys
 
 import test_data
@@ -12,17 +14,50 @@ from cutter import draw_dashed_lines_between_boxes
 from test_data import convert_to_grayscale, convert_to_binary, add_gaussian_noise, list_files_w_ext
 
 
+class TDataWorker(QObject):
+    """
+    Worker class responsible for generating test data in a background thread.
+
+    Attributes:
+        finished (Signal): Signal emitted when the data generation task is complete.
+
+    Methods:
+        __init__(self, tdata_size: int) -> None
+            Initializes the worker with the specified size of test data to generate.
+
+        run(self) -> None
+            Executes the long-running task of generating test data and emits a signal upon completion.
+
+    Notes:
+        - This class is designed to be used with QThread to perform tasks in the background without freezing the GUI.
+        - The `run` method should be connected to the thread's `started` signal to begin execution.
+        - The `finished` signal should be connected to a slot that handles cleanup or further processing after data generation is complete.
+    """
+
+    finished = Signal()
+
+    def __init__(self, tdata_size):
+        super().__init__()
+        self.tdata_size = tdata_size
+
+    def run(self):
+        test_data.generate_test_data(self.tdata_size)
+        self.finished.emit()
+
+
 class ImageClusterApp(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         # for demo
         self.demo_running = False
+        self.demo_index = 0
 
         # Initial display
         self.eps_value = 50
 
         # Load the image
-        self.image_path = 'test_images/test_photo_1.jpg'  # Replace with your image path
+        self.image_path = './test_images/test_photo_1.jpg'
+        self.image_fname = os.path.basename(self.image_path)
         self.image = cv2.imread(self.image_path)
 
         # Resize the image
@@ -62,6 +97,9 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.open_button = QtWidgets.QPushButton("Open Image")
         self.open_button.clicked.connect(self.open_image_w_dialog)
         controls_layout.addWidget(self.open_button)
+
+        self.filename_label = QtWidgets.QLabel(f"Filename: {self.image_fname}")
+        controls_layout.addWidget(self.filename_label)
 
         # Create a label to display the total number of pixels
         self.total_pixel_label = QtWidgets.QLabel(self)
@@ -152,13 +190,58 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         controls_layout.addLayout(slider_layout)
 
+        # Create a horizontal box layout
+        tdata_hbox = QtWidgets.QHBoxLayout()
+
+        # Create a label for the combo box
+        self.tdata_size_label = QtWidgets.QLabel("Select Size:")
+        tdata_hbox.addWidget(self.tdata_size_label)
+
+        # Create a combo box with numbers from 10 to 100 in steps of 10
+        self.tdata_combo_box = QtWidgets.QComboBox()
+        self.tdata_combo_box.addItems([str(i) for i in range(10, 110, 10)])
+        tdata_hbox.addWidget(self.tdata_combo_box)
+
+        # Create a button
+        self.gen_data_btn = QtWidgets.QPushButton("Generate Test Data")
+        tdata_hbox.addWidget(self.gen_data_btn)
+
+        # Connect the button's clicked signal to a slot
+        self.gen_data_btn.clicked.connect(self.generate_test_data)
+
+        controls_layout.addLayout(tdata_hbox)
+
         # Button to run demo
         self.run_demo_button = QtWidgets.QPushButton("Run Demo")
         self.run_demo_button.clicked.connect(self.run_demo)
         controls_layout.addWidget(self.run_demo_button)
 
+        self.msg_label = QtWidgets.QLabel("")
+        controls_layout.addWidget(self.msg_label)
+
         self.setLayout(main_layout)
         self.setWindowTitle("Repeat Graphic Divider - Demo")
+
+    def generate_test_data(self):
+        tdata_size = int(self.tdata_combo_box.currentText())
+        self.msg_label.setText("Generating test data...")
+
+        self.thread = QThread()
+        self.worker = TDataWorker(tdata_size)
+
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        # self.worker.progress.connect(self.update_progress)
+        self.worker.finished.connect(self.tdata_gen_finished)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.thread.start()
+        # self.msg_label.setText("Test data generation complete!")
+
+    def tdata_gen_finished(self):
+        self.msg_label.setText("Test data generation complete!")
 
     def calculate_white_pixels(self, image):
         # Count the number of white pixels (255, 255, 255)
@@ -191,6 +274,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         if file_path:
             # Load the new image
             self.image_path = file_path
+            self.image_fname = os.path.basename(self.image_path)
             self.image = cv2.imread(self.image_path)
             self.resize_image()
 
@@ -207,6 +291,7 @@ class ImageClusterApp(QtWidgets.QWidget):
             # Update labels
             self.total_pixel_label.setText(f"Total Pixels: {self.total_pixel_count}")
             self.white_pixel_label.setText(f"White Pixels: {self.white_pixel_count}")
+            self.filename_label.setText(f"Filename: {self.image_fname}")
 
             # Update the image display with the new image
             self.update_image()
@@ -238,31 +323,40 @@ class ImageClusterApp(QtWidgets.QWidget):
             self.update_image()
 
     def demo_finished(self):
-        print("Demo completed.")
+        # print("Demo completed.")
+        self.demo_index = 0
         self.demo_running = False
         self.run_demo_button.setText("Run Demo")
+        self.msg_label.setText("Demo Finished!")
 
     def run_demo(self):
-        print("running demo")
+        # print("running demo")
         self.demo_running = not self.demo_running
-        self.demo_images = list_files_w_ext(test_data.output_folder, "png")
-        self.demo_index = 0
         if self.demo_running:
-            self.eps_value = 0
-            # change button text
-            self.run_demo_button.setText("Stop Demo")
-            # Connect QTimer to trigger image updates
-            self.timer = QTimer()
-            self.timer.timeout.connect(self.change_eps_update_image)
-            self.timer.start(20)  # 20 milliseconds
+            self.demo_images = list_files_w_ext(test_data.output_folder, "png")
+            if len(self.demo_images) == 0:
+                QtWidgets.QMessageBox.critical(self, "Error", "No test data found in ./test_data/output_images to run demo on.")
+                self.demo_running = False
+            else:
+
+                self.eps_value = 0
+                # change button text
+                self.run_demo_button.setText("Stop Demo")
+                # Connect QTimer to trigger image updates
+                self.timer = QTimer()
+                self.timer.timeout.connect(self.change_eps_update_image)
+                self.timer.start(20)  # 20 milliseconds
+
+                self.msg_label.setText("Running Demo...")
 
         else:
             # demo stopped
             self.timer.stop()
             # change button text
             self.run_demo_button.setText("Run Demo")
+            self.msg_label.setText("Demo stopped!")
 
-        print(self.demo_running)
+        # print(self.demo_running)
 
     def update_image(self):
         # Clear the image for the new draw
