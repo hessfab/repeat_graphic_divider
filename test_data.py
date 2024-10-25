@@ -160,7 +160,7 @@ def transparent_to_white(img):
     # Check if the image has an alpha channel
     if img.shape[2] == 4:  # If the image has an alpha channel
         # Create an output image with a white background
-        white_background = np.ones_like(img, dtype=np.uint8) * 255  # Create a white image
+        white_background = np.ones_like(img, dtype=np.uint8) * 245  # Create a white image
 
         # Split the channels
         b, g, r, a = cv2.split(img)  # Separate the channels including alpha
@@ -258,7 +258,7 @@ def create_image_grid(input_image_path, output_image_path, grid_size=(3, 3), pad
     img = resize_image(img)
     # Add padding around the image (optional)
     if padding > 0:
-        img = cv2.copyMakeBorder(img, padding, padding, padding, padding, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+        img = cv2.copyMakeBorder(img, padding, padding, padding, padding, cv2.BORDER_CONSTANT, value=[245, 245, 245])
 
     # Get the size of the padded image
     img_height, img_width, _ = img.shape
@@ -335,6 +335,10 @@ def process_svgs_in_folder(input_folder, output_folder, data_set_size=None):
         img = resize_image(img)
         row = random.choice(range(1, 7))
         col = random.choice(range(1, 4))
+        # prevent 1x1
+        while row * col == 1:
+            row = random.choice(range(1, 7))
+            col = random.choice(range(1, 4))
         padding = random.choice(range(20, 51, 5))
         logo_name = os.path.basename(logo_path).split(".")[0]
 
