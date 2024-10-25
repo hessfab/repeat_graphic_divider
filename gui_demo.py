@@ -2,11 +2,11 @@ import os
 
 import cv2
 import numpy as np
-from PySide2.QtWidgets import QFileDialog
+from PySide2.QtWidgets import QFileDialog, QWidget, QSizePolicy
 from sklearn.cluster import DBSCAN
 from PySide2 import QtWidgets, QtCore
-from PySide2.QtGui import QImage, QPixmap
-from PySide2.QtCore import Qt, QTimer, QThread, QObject, Signal
+from PySide2.QtGui import QImage, QPixmap, QIcon
+from PySide2.QtCore import Qt, QTimer, QThread, QObject, Signal, QSize
 import sys
 
 import test_data
@@ -86,12 +86,16 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         # Create a label to display the image
         self.image_label = QtWidgets.QLabel(self)
+        self.image_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.image_label)
 
         # Controls layout
         controls_layout = QtWidgets.QVBoxLayout()
         controls_layout.setAlignment(Qt.AlignTop)
-        main_layout.addLayout(controls_layout)
+        controls_widget = QWidget()
+        controls_widget.setLayout(controls_layout)
+        controls_widget.setFixedWidth(400)
+        main_layout.addWidget(controls_widget)
 
         # Button to open the file explorer and load a new image
         self.open_button = QtWidgets.QPushButton("Open Image")
@@ -190,10 +194,10 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         controls_layout.addLayout(slider_layout)
 
-        # Create a horizontal box layout
+        # test data widgets
         tdata_hbox = QtWidgets.QHBoxLayout()
 
-        # Create a label for the combo box
+        # Create a label for tdata size
         self.tdata_size_label = QtWidgets.QLabel("Select Size:")
         tdata_hbox.addWidget(self.tdata_size_label)
 
@@ -202,14 +206,44 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.tdata_combo_box.addItems([str(i) for i in range(10, 110, 10)])
         tdata_hbox.addWidget(self.tdata_combo_box)
 
-        # Create a button
+        # Create a button generate test data
         self.gen_data_btn = QtWidgets.QPushButton("Generate Test Data")
         tdata_hbox.addWidget(self.gen_data_btn)
-
-        # Connect the button's clicked signal to a slot
         self.gen_data_btn.clicked.connect(self.generate_test_data)
 
         controls_layout.addLayout(tdata_hbox)
+
+        self.spacer = QWidget()
+        self.spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        controls_layout.addWidget(self.spacer)
+
+        # scroll image widgets
+        scroll_hbox = QtWidgets.QHBoxLayout()
+
+        # Create a button on the left with an arrow pointing to the left icon
+        left_arrow_icon = QIcon("./assets/icons/icons8-left-arrow-72.png")
+        self.left_button = QtWidgets.QPushButton()
+        self.left_button.setIcon(left_arrow_icon)
+        self.left_button.setIconSize(QSize(36, 36))
+        self.left_button.setDisabled(True)
+        scroll_hbox.addWidget(self.left_button)
+
+        # Connect the left button's clicked signal to a slot
+        self.left_button.clicked.connect(self.previous_image)
+
+        # Create a button on the right with an arrow pointing to the right icon
+        right_arrow_icon = QIcon("./assets/icons/icons8-right-arrow-72.png")
+        self.right_button = QtWidgets.QPushButton()
+        self.right_button.setIcon(right_arrow_icon)
+        self.right_button.setIconSize(QSize(36, 36))
+        self.right_button.setDisabled(True)
+        scroll_hbox.addWidget(self.right_button)
+
+        # Connect the right button's clicked signal to a slot
+        self.right_button.clicked.connect(self.next_image)
+
+        controls_layout.addLayout(scroll_hbox)
 
         # Button to run demo
         self.run_demo_button = QtWidgets.QPushButton("Run Demo")
@@ -221,6 +255,14 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         self.setLayout(main_layout)
         self.setWindowTitle("Repeat Graphic Divider - Demo")
+
+    def next_image(self):
+        self.demo_index = (self.demo_index + 1) % len(self.demo_images)
+        self.open_image(self.demo_images[self.demo_index])
+
+    def previous_image(self):
+        self.demo_index = (self.demo_index - 1) % len(self.demo_images)
+        self.open_image(self.demo_images[self.demo_index])
 
     def generate_test_data(self):
         tdata_size = int(self.tdata_combo_box.currentText())
@@ -325,9 +367,12 @@ class ImageClusterApp(QtWidgets.QWidget):
     def demo_finished(self):
         # print("Demo completed.")
         self.demo_index = 0
+        self.open_image(self.demo_images[self.demo_index])
         self.demo_running = False
         self.run_demo_button.setText("Run Demo")
         self.msg_label.setText("Demo Finished!")
+        self.left_button.setDisabled(False)
+        self.right_button.setDisabled(False)
 
     def run_demo(self):
         # print("running demo")
@@ -348,6 +393,8 @@ class ImageClusterApp(QtWidgets.QWidget):
                 self.timer.start(20)  # 20 milliseconds
 
                 self.msg_label.setText("Running Demo...")
+                self.left_button.setDisabled(True)
+                self.right_button.setDisabled(True)
 
         else:
             # demo stopped
@@ -355,6 +402,8 @@ class ImageClusterApp(QtWidgets.QWidget):
             # change button text
             self.run_demo_button.setText("Run Demo")
             self.msg_label.setText("Demo stopped!")
+            self.left_button.setDisabled(False)
+            self.right_button.setDisabled(False)
 
         # print(self.demo_running)
 
@@ -527,7 +576,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.image_label.setPixmap(scaled_pixmap)
 
         # resize window to fit new content
-        self.adjustSize()
+        # self.adjustSize()
 
 
 # Main entry point
