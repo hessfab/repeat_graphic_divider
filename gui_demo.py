@@ -310,7 +310,9 @@ class ImageClusterApp(QtWidgets.QWidget):
         new_width = int(original_width * aspect_ratio)
 
         # Resize the image while maintaining the aspect ratio
-        self.image = cv2.resize(self.image, (new_width, new_height))
+        # Only downscale, don't upscale
+        if aspect_ratio < 1.0:
+            self.image = cv2.resize(self.image, (new_width, new_height))
 
     def open_image(self, file_path):
         if file_path:
