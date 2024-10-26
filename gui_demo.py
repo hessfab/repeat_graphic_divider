@@ -256,6 +256,13 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.setLayout(main_layout)
         self.setWindowTitle("Repeat Graphic Divider - Demo")
 
+        # add buttons to disable here when demo is running
+        self.non_demo_btns = [self.open_button, self.gen_data_btn, self.left_button, self.right_button]
+
+    def set_disable_non_demo_btns(self, disable:bool):
+        for btn in self.non_demo_btns:
+            btn.setDisabled(disable)
+
     def next_image(self):
         self.demo_index = (self.demo_index + 1) % len(self.demo_images)
         self.open_image(self.demo_images[self.demo_index])
@@ -375,8 +382,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.demo_running = False
         self.run_demo_button.setText("Run Demo")
         self.msg_label.setText("Demo Finished!")
-        self.left_button.setDisabled(False)
-        self.right_button.setDisabled(False)
+        self.set_disable_non_demo_btns(False)
 
     def run_demo(self):
         # print("running demo")
@@ -397,8 +403,7 @@ class ImageClusterApp(QtWidgets.QWidget):
                 self.timer.start(20)  # 20 milliseconds
 
                 self.msg_label.setText("Running Demo...")
-                self.left_button.setDisabled(True)
-                self.right_button.setDisabled(True)
+                self.set_disable_non_demo_btns(True)
 
         else:
             # demo stopped
@@ -406,8 +411,7 @@ class ImageClusterApp(QtWidgets.QWidget):
             # change button text
             self.run_demo_button.setText("Run Demo")
             self.msg_label.setText("Demo stopped!")
-            self.left_button.setDisabled(False)
-            self.right_button.setDisabled(False)
+            self.set_disable_non_demo_btns(False)
 
         # print(self.demo_running)
 
