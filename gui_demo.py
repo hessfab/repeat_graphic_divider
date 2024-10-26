@@ -176,6 +176,23 @@ class ImageClusterApp(QtWidgets.QWidget):
         controls_layout.addWidget(self.show_divisions_checkbox)
         self.show_divisions_checkbox.stateChanged.connect(self.update_image)
 
+        # keypoints slider
+        keypoints_slider_layout = QtWidgets.QHBoxLayout()
+
+        self.kp_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.kp_value = 2000
+        self.kp_slider.setRange(500, 5000)
+        self.kp_slider.setValue(self.kp_value)
+        self.kp_slider.setSingleStep(100)
+        self.kp_slider.valueChanged.connect(self.update_image)
+        keypoints_slider_layout.addWidget(self.kp_slider)
+
+        self.kp_max_label = QtWidgets.QLabel(self)
+        self.kp_max_label.setText(f"kp_max: {self.kp_value}")
+        keypoints_slider_layout.addWidget(self.kp_max_label)
+
+        controls_layout.addLayout(keypoints_slider_layout)
+
         # Create a horizontal layout for the slider and its label
         slider_layout = QtWidgets.QHBoxLayout()
 
@@ -303,7 +320,6 @@ class ImageClusterApp(QtWidgets.QWidget):
         return white_pixels
 
     def resize_image(self):
-        # TODO resizing may cause discrepancies with coordinates of bboxes and division lines with respect to original image
         # Get the dimensions of the original image
         original_height, original_width = self.image.shape[:2]
 
@@ -424,6 +440,9 @@ class ImageClusterApp(QtWidgets.QWidget):
             image_copy = add_gaussian_noise(image_copy)
 
         # Detect keypoints and descriptors
+        self.kp_value = self.kp_slider.value()
+        self.kp_max_label.setText(f"kp_max: {self.kp_value}")
+        self.orb.setMaxFeatures(self.kp_value)
         keypoints, descriptors = self.orb.detectAndCompute(image_copy, None)
 
         # Convert keypoints to NumPy array for clustering
