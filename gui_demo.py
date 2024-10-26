@@ -330,6 +330,8 @@ class ImageClusterApp(QtWidgets.QWidget):
             self.total_pixel_count = self.image.shape[0] * self.image.shape[1]
             grayscaled_img = convert_to_grayscale(self.image)
             self.bw_img = convert_to_binary(grayscaled_img)
+            # cv2.imwrite("./test_data/output_images/gray_img.png", grayscaled_img)
+            # cv2.imwrite("./test_data/output_images/bw_img.png", self.bw_img)
             self.white_pixel_count = self.calculate_white_pixels(self.bw_img)
 
             # Update labels
