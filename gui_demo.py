@@ -283,10 +283,12 @@ class ImageClusterApp(QtWidgets.QWidget):
     def next_image(self):
         self.demo_index = (self.demo_index + 1) % len(self.demo_images)
         self.open_image(self.demo_images[self.demo_index])
+        self.msg_label.setText(f"Test Image -> ({self.demo_index + 1}/{len(self.demo_images)})")
 
     def previous_image(self):
         self.demo_index = (self.demo_index - 1) % len(self.demo_images)
         self.open_image(self.demo_images[self.demo_index])
+        self.msg_label.setText(f"Test Image -> ({self.demo_index + 1}/{len(self.demo_images)})")
 
     def generate_test_data(self):
         tdata_size = int(self.tdata_combo_box.currentText())
@@ -385,6 +387,8 @@ class ImageClusterApp(QtWidgets.QWidget):
                 self.demo_finished()
             else:
                 self.open_image(self.demo_images[self.demo_index])
+                # update progress for user
+                self.msg_label.setText(f"Running Demo ({self.demo_index + 1}/{len(self.demo_images)})...")
         else:
             # increase eps value and update
             self.eps_value += 1
@@ -418,7 +422,7 @@ class ImageClusterApp(QtWidgets.QWidget):
                 self.timer.timeout.connect(self.change_eps_update_image)
                 self.timer.start(20)  # 20 milliseconds
 
-                self.msg_label.setText("Running Demo...")
+                self.msg_label.setText(f"Running Demo ({self.demo_index + 1}/{len(self.demo_images)})...")
                 self.set_disable_non_demo_btns(True)
 
         else:
@@ -426,7 +430,7 @@ class ImageClusterApp(QtWidgets.QWidget):
             self.timer.stop()
             # change button text
             self.run_demo_button.setText("Run Demo")
-            self.msg_label.setText("Demo stopped!")
+            self.msg_label.setText(f"Demo Stopped! ({self.demo_index + 1}/{len(self.demo_images)})")
             self.set_disable_non_demo_btns(False)
 
         # print(self.demo_running)
