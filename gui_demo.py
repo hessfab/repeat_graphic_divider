@@ -54,6 +54,7 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         # Initial display
         self.eps_value = 50
+        self.dv_value = 15
 
         # Load the image
         self.image_path = './test_images/test_photo_1.jpg'
@@ -194,7 +195,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         controls_layout.addLayout(keypoints_slider_layout)
 
         # Create a horizontal layout for the slider and its label
-        slider_layout = QtWidgets.QHBoxLayout()
+        eps_slider_layout = QtWidgets.QHBoxLayout()
 
         # Create a slider for adjusting the eps value
         self.eps_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
@@ -202,14 +203,32 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.eps_slider.setRange(1, self.eps_max)
         self.eps_slider.setValue(self.eps_value)
         self.eps_slider.valueChanged.connect(self.update_image)
-        slider_layout.addWidget(self.eps_slider)
+        eps_slider_layout.addWidget(self.eps_slider)
 
         # Create a label to display the current eps value next to the slider
         self.eps_value_label = QtWidgets.QLabel(self)
         self.eps_value_label.setText(f"eps: {self.eps_slider.value()}")
-        slider_layout.addWidget(self.eps_value_label)
+        eps_slider_layout.addWidget(self.eps_value_label)
 
-        controls_layout.addLayout(slider_layout)
+        controls_layout.addLayout(eps_slider_layout)
+
+        # Create a horizontal layout for the slider and its label
+        dv_slider_layout = QtWidgets.QHBoxLayout()
+
+        # Create a slider for adjusting the division alignment threshold value
+        self.dv_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.dv_max = 50
+        self.dv_slider.setRange(1, self.dv_max)
+        self.dv_slider.setValue(self.dv_value)
+        self.dv_slider.valueChanged.connect(self.update_image)
+        dv_slider_layout.addWidget(self.dv_slider)
+
+        # Create a label to display the current eps value next to the slider
+        self.dv_value_label = QtWidgets.QLabel(self)
+        self.dv_value_label.setText(f"dv_thresh: {self.dv_slider.value()}")
+        dv_slider_layout.addWidget(self.dv_value_label)
+
+        controls_layout.addLayout(dv_slider_layout)
 
         # test data widgets
         tdata_hbox = QtWidgets.QHBoxLayout()
@@ -454,9 +473,12 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         # Get the current value of eps
         self.eps_value = self.eps_slider.value()
-
         # Update the eps value label
         self.eps_value_label.setText(f"eps: {self.eps_value}")
+
+        # get and update dv_threshold
+        self.dv_value = self.dv_slider.value()
+        self.dv_value_label.setText(f"dv_thresh: {self.dv_value}")
 
         # Perform DBSCAN clustering
         db = DBSCAN(eps=float(self.eps_value), min_samples=10).fit(keypoints_np) #TODO slider for min samples
@@ -564,7 +586,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         # Generate divisions and draw if checked
         if self.show_divisions_checkbox.isChecked():
             image_copy, hori_lines, vert_lines = draw_dashed_lines_between_boxes(image_copy, bbox_coordinates, show_boxes=False,
-                                                           alignment_tolerance=15)
+                                                           alignment_tolerance=15, consolidation_threshold=self.dv_value)
             num_dashed_lines = len(hori_lines) + len(vert_lines)
             if num_dashed_lines > 0:
                 self.num_divisions_label.setText(f"# Divisions: {num_dashed_lines}")
