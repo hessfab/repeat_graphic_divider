@@ -11,7 +11,7 @@ import sys
 
 import test_data
 from cutter import draw_dashed_lines_between_boxes
-from test_data import convert_to_grayscale, convert_to_binary, add_gaussian_noise, list_files_w_ext
+from test_data import convert_to_grayscale, convert_to_binary, add_gaussian_noise, list_files_w_ext, min_max_scale
 
 
 class TDataWorker(QObject):
@@ -131,10 +131,18 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.bbox_count_label.setText("# bboxes: N/A")
         controls_layout.addWidget(self.bbox_count_label)
 
+        self.xl_std_label = QtWidgets.QLabel(self)
+        self.xl_std_label.setText("xl_std: N/A")
+        controls_layout.addWidget(self.xl_std_label)
+
+        self.yl_std_label = QtWidgets.QLabel(self)
+        self.yl_std_label.setText("yl_std: N/A")
+        controls_layout.addWidget(self.yl_std_label)
+
         # Create a label to display the standard deviation
-        self.std_label = QtWidgets.QLabel(self)
-        self.std_label.setText("ratio(NWpx/Wpx)_std : N/A")
-        controls_layout.addWidget(self.std_label)
+        self.ratio_std_label = QtWidgets.QLabel(self)
+        self.ratio_std_label.setText("ratio(NWpx/Wpx)_std : N/A")
+        controls_layout.addWidget(self.ratio_std_label)
 
         # Create a label to display bounding boxes / standard deviation
         self.bbox_std_ratio_label = QtWidgets.QLabel(self)
@@ -484,8 +492,10 @@ class ImageClusterApp(QtWidgets.QWidget):
         db = DBSCAN(eps=float(self.eps_value), min_samples=10).fit(keypoints_np) #TODO slider for min samples
         labels = db.labels_
 
-        # Store the ratios for standard deviation calculation
+        # Store bbox stats for std calculations
         ratios = []
+        x_lengths = []
+        y_lengths = []
 
         # Count the number of bounding boxes, and store coordinates
         bounding_box_count = 0
@@ -533,8 +543,11 @@ class ImageClusterApp(QtWidgets.QWidget):
             # Add the area to the total area
             total_area += area
 
-            # Store the ratio for standard deviation calculation
+            # Store bbox stats for std calculations
             ratios.append(ratio)
+            x_lengths.append(x_max-x_min)
+            y_lengths.append(y_max-y_min)
+
 
             # Display the ratio and area above the bounding box if checkbox is checked
             if self.show_ratio_area_labels_checkbox.isChecked():
@@ -552,15 +565,33 @@ class ImageClusterApp(QtWidgets.QWidget):
 
         # Calculate and display the standard deviation of ratios
         if len(ratios) > 1:
-            std_dev = np.std(ratios)
-            self.std_label.setText(f"ratio(NWpx/Wpx)_std : {std_dev:.2f}")
+            ratio_std = np.std(ratios)
+            self.ratio_std_label.setText(f"ratio(NWpx/Wpx)_std : {ratio_std:.3f}")
         else:
-            std_dev = 0
-            self.std_label.setText("ratio(NWpx/Wpx)_std: N/A")
+            ratio_std = 0
+            self.ratio_std_label.setText("ratio(NWpx/Wpx)_std: N/A")
+
+        # calculate and display std x_lengths
+        if len(x_lengths) > 1:
+            xl_std = np.std(x_lengths)
+            # print(x_lengths)
+            self.xl_std_label.setText(f"xl_std: {xl_std:.3f}")
+        else:
+            xl_std = 0
+            self.xl_std_label.setText("xl_std: N/A")
+
+        # calculate and display std y_lengths
+        if len(y_lengths) > 1:
+            yl_std = np.std(y_lengths)
+            # print(y_lengths)
+            self.yl_std_label.setText(f"yl_std: {yl_std:.3f}")
+        else:
+            yl_std = 0
+            self.yl_std_label.setText("yl_std: N/A")
 
         # Calculate the bounding boxes / standard deviation ratio
-        if std_dev > 0:
-            bbox_std_ratio = bounding_box_count / std_dev
+        if ratio_std > 0:
+            bbox_std_ratio = bounding_box_count / ratio_std
             self.bbox_std_ratio_label.setText(f"# bboxes / ratio_std: {bbox_std_ratio:.2f}")
         else:
             self.bbox_std_ratio_label.setText("# bboxes / ratio_std: N/A")
@@ -575,7 +606,7 @@ class ImageClusterApp(QtWidgets.QWidget):
         self.calculated_value_label.setText(f"(total_px_count - total_bbox_area) / white_px_count: {ratio_inverse_bbox_to_white_px:.2f}")
 
         # Eq maximizer, maximize this value to find ideal eps value
-        if std_dev > 0:
+        if ratio_std > 0:
             eq_max_value = bbox_std_ratio ** (ratio_inverse_bbox_to_white_px ** 3) # created this equation through trial and error
             # Update the calculated value label
             self.eq_maximizer_label.setText(f"EQ Maximizer: {eq_max_value:.2f}")

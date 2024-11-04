@@ -8,6 +8,28 @@ from PIL import Image
 import io
 
 
+def min_max_scale(data):
+    # Convert the input list to a numpy array
+    array = np.array(data)
+
+    # Ensure the array is not empty to avoid division by zero errors
+    if array.size == 0:
+        raise ValueError("Input array is empty")
+
+    # Get the minimum and maximum values from the array
+    min_val = array.min()
+    max_val = array.max()
+
+    # Check if all values are the same, which would make min and max equal
+    if min_val == max_val:
+        # Return a zero array if all values are the same
+        return np.zeros_like(array)
+
+    # Apply the min-max scaling formula
+    scaled_array = (array - min_val) / (max_val - min_val)
+    return scaled_array
+
+
 def add_gaussian_noise(image, mean=0, std=25):
     """
     Adds Gaussian noise to an image.
